@@ -6,11 +6,11 @@ import com.sora.dopwatch.data.AppUsageEntity
 import com.sora.dopwatch.data.SettingsRepository
 import com.sora.dopwatch.data.UsageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,9 +32,12 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    private var refreshJob: Job? = null
+
     fun setPermissionGranted(granted: Boolean) {
+        val prev = _uiState.value.hasPermission
         _uiState.value = _uiState.value.copy(hasPermission = granted)
-        if (granted) refreshUsage()
+        if (granted && !prev) refreshUsage()
     }
 
     fun setBatteryOptimized(optimized: Boolean) {
@@ -42,21 +45,20 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun refreshUsage() {
-        viewModelScope.launch {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 usageRepository.refreshAndSave()
                 val settings = settingsRepository.getSettings()
-                // collectで最新データを取得
-                usageRepository.getTodayUsageFlow().collect { usages ->
-                    val totalMs = usages.sumOf { it.usageTimeMs }
-                    _uiState.value = _uiState.value.copy(
-                        usages = usages,
-                        totalMs = totalMs,
-                        totalLimitMs = settings.totalLimitMs,
-                        isLoading = false
-                    )
-                }
+                val usages = usageRepository.getTodayUsageFlow().first()
+                val totalMs = usages.sumOf { it.usageTimeMs }
+                _uiState.value = _uiState.value.copy(
+                    usages = usages,
+                    totalMs = totalMs,
+                    totalLimitMs = settings.totalLimitMs,
+                    isLoading = false
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }

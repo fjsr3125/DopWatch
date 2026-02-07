@@ -4,22 +4,26 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface AppUsageDao {
+abstract class AppUsageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(usages: List<AppUsageEntity>)
+    abstract suspend fun insertAll(usages: List<AppUsageEntity>)
 
     @Query("SELECT * FROM app_usage WHERE date = :date ORDER BY usageTimeMs DESC")
-    fun getUsageByDate(date: String): Flow<List<AppUsageEntity>>
-
-    @Query("SELECT * FROM app_usage WHERE date = :date ORDER BY usageTimeMs DESC")
-    suspend fun getUsageByDateOnce(date: String): List<AppUsageEntity>
+    abstract fun getUsageByDate(date: String): Flow<List<AppUsageEntity>>
 
     @Query("DELETE FROM app_usage WHERE date = :date")
-    suspend fun deleteByDate(date: String)
+    abstract suspend fun deleteByDate(date: String)
 
     @Query("SELECT SUM(usageTimeMs) FROM app_usage WHERE date = :date")
-    suspend fun getTotalUsageByDate(date: String): Long?
+    abstract suspend fun getTotalUsageByDate(date: String): Long?
+
+    @Transaction
+    open suspend fun replaceByDate(date: String, usages: List<AppUsageEntity>) {
+        deleteByDate(date)
+        insertAll(usages)
+    }
 }
