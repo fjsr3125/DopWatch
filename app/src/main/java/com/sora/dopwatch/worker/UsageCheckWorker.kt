@@ -41,6 +41,8 @@ class UsageCheckWorker @AssistedInject constructor(
         private const val KEY_LAST_ALERT_COUNT = "last_alert_count"
         private const val KEY_HEARTBEAT_PREFIX = "heartbeat_sent"
         private const val MAX_LINE_ALERTS_PER_DAY = 3
+        private const val MIN_ALERT_COOLDOWN_MS = 2L * 60 * 60 * 1000  // 2時間クールダウン
+        private const val KEY_LAST_ALERT_TIME = "last_alert_time"
         private const val HEARTBEAT_HOUR_MORNING = 9
         private const val HEARTBEAT_HOUR_NIGHT = 21
     }
@@ -84,10 +86,16 @@ class UsageCheckWorker @AssistedInject constructor(
                 showNotification(alert.type.name, message)
             }
 
-            // LINE警告通知（1日3回まで、ハートビートとは別枠）
+            // LINE警告通知（1日3回まで、2時間クールダウン、ハートビートとは別枠）
             if (settings.isLineConfigured && canSendLineAlert()) {
-                val mainAlert = alerts.first()
-                val message = checkUsageUseCase.buildAlertMessage(mainAlert)
+                val alertCount = getLineAlertCount()
+                val message = if (alertCount == 0) {
+                    // 初回: 主要アラートを詳細表示
+                    checkUsageUseCase.buildAlertMessage(alerts.first())
+                } else {
+                    // 2回目以降: 全超過カテゴリをまとめて表示
+                    checkUsageUseCase.buildFollowUpMessage(alerts, alertCount + 1)
+                }
                 lineClient.sendMessage(
                     channelAccessToken = settings.lineToken,
                     groupId = settings.lineGroupId,
@@ -174,16 +182,38 @@ class UsageCheckWorker @AssistedInject constructor(
     private fun canSendLineAlert(): Boolean {
         val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val today = usageRepository.getTodayString()
+
+        // 1日の上限チェック
+        val countKey = "${KEY_LAST_ALERT_COUNT}_$today"
+        val count = prefs.getInt(countKey, 0)
+        if (count >= MAX_LINE_ALERTS_PER_DAY) return false
+
+        // 初回は即時送信OK
+        if (count == 0) return true
+
+        // 2回目以降: 2時間クールダウン
+        val timeKey = "${KEY_LAST_ALERT_TIME}_$today"
+        val lastAlertTime = prefs.getLong(timeKey, 0L)
+        val elapsed = System.currentTimeMillis() - lastAlertTime
+        return elapsed >= MIN_ALERT_COOLDOWN_MS
+    }
+
+    private fun getLineAlertCount(): Int {
+        val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val today = usageRepository.getTodayString()
         val key = "${KEY_LAST_ALERT_COUNT}_$today"
-        val count = prefs.getInt(key, 0)
-        return count < MAX_LINE_ALERTS_PER_DAY
+        return prefs.getInt(key, 0)
     }
 
     private fun incrementLineAlertCount() {
         val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val today = usageRepository.getTodayString()
-        val key = "${KEY_LAST_ALERT_COUNT}_$today"
-        val count = prefs.getInt(key, 0)
-        prefs.edit().putInt(key, count + 1).apply()
+        val countKey = "${KEY_LAST_ALERT_COUNT}_$today"
+        val timeKey = "${KEY_LAST_ALERT_TIME}_$today"
+        val count = prefs.getInt(countKey, 0)
+        prefs.edit()
+            .putInt(countKey, count + 1)
+            .putLong(timeKey, System.currentTimeMillis())
+            .apply()
     }
 }

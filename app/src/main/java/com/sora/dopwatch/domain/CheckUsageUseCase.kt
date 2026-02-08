@@ -92,4 +92,22 @@ class CheckUsageUseCase @Inject constructor() {
             |$appList
         """.trimMargin()
     }
+
+    fun buildFollowUpMessage(alerts: List<UsageAlert>, alertNumber: Int): String {
+        val header = "⚠️ DopWatch: ${alertNumber}回目の警告\n引き続き使用超過中です"
+        val details = alerts.joinToString("\n") { alert ->
+            val icon = when (alert.type) {
+                AlertType.TOTAL_EXCEEDED -> "📱"
+                AlertType.SNS_EXCEEDED -> "💬"
+                AlertType.VIDEO_EXCEEDED -> "🎬"
+            }
+            val typeLabel = when (alert.type) {
+                AlertType.TOTAL_EXCEEDED -> "スクリーンタイム"
+                AlertType.SNS_EXCEEDED -> "SNS"
+                AlertType.VIDEO_EXCEEDED -> "動画"
+            }
+            "$icon $typeLabel: ${formatDuration(alert.currentMs)} / ${formatDuration(alert.limitMs)}"
+        }
+        return "$header\n\n$details"
+    }
 }
