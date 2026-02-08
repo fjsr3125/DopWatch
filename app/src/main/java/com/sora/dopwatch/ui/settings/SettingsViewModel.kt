@@ -55,6 +55,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun saveDriveFileId(fileId: String) {
+        viewModelScope.launch {
+            settingsRepository.updateDriveFileId(fileId.trim())
+            _saveMessage.value = "Drive設定を保存しました"
+        }
+    }
+
     fun clearMessage() {
         _saveMessage.value = null
     }

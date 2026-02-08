@@ -104,6 +104,12 @@ fun SettingsScreen(
                 onSave = viewModel::saveBeeminderConfig
             )
 
+            // Google Drive リモート設定
+            DriveConfigSection(
+                fileId = settings.driveFileId,
+                onSave = viewModel::saveDriveFileId
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -248,6 +254,47 @@ private fun BeeminderConfigSection(
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = { onSave(editUser, editToken, editGoal) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("保存")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DriveConfigSection(
+    fileId: String,
+    onSave: (String) -> Unit
+) {
+    var editFileId by remember(fileId) { mutableStateOf(fileId) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Google Drive リモート設定",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "DriveにJSON設定ファイルを置くと、制限時間や通知回数を遠隔で変更できます",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = editFileId,
+                onValueChange = { editFileId = it },
+                label = { Text("Drive File ID") },
+                placeholder = { Text("1aBcDeFgHiJkLmNoPqRsTuVwXyZ") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = { onSave(editFileId) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("保存")

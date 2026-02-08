@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.sora.dopwatch.api.RemoteConfig
 import com.sora.dopwatch.domain.ThresholdConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +32,9 @@ class SettingsRepository @Inject constructor(
         val TOTAL_LIMIT_MS = longPreferencesKey("total_daily_limit_ms")
         val SNS_LIMIT_MS = longPreferencesKey("sns_limit_ms")
         val VIDEO_LIMIT_MS = longPreferencesKey("video_limit_ms")
+        val DRIVE_FILE_ID = stringPreferencesKey("drive_file_id")
+        val MAX_ALERTS_PER_DAY = intPreferencesKey("max_alerts_per_day")
+        val COOLDOWN_MINUTES = intPreferencesKey("cooldown_minutes")
     }
 
     val settingsFlow: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -41,7 +46,10 @@ class SettingsRepository @Inject constructor(
             beeminderGoal = prefs[BEEMINDER_GOAL] ?: "screentime",
             totalLimitMs = prefs[TOTAL_LIMIT_MS] ?: (3 * 60 * 60 * 1000L),
             snsLimitMs = prefs[SNS_LIMIT_MS] ?: (1 * 60 * 60 * 1000L),
-            videoLimitMs = prefs[VIDEO_LIMIT_MS] ?: (1 * 60 * 60 * 1000L)
+            videoLimitMs = prefs[VIDEO_LIMIT_MS] ?: (1 * 60 * 60 * 1000L),
+            driveFileId = prefs[DRIVE_FILE_ID] ?: "",
+            maxAlertsPerDay = prefs[MAX_ALERTS_PER_DAY] ?: 3,
+            cooldownMinutes = prefs[COOLDOWN_MINUTES] ?: 120
         )
     }
 
@@ -70,6 +78,32 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    suspend fun updateDriveFileId(fileId: String) {
+        context.dataStore.edit { prefs ->
+            prefs[DRIVE_FILE_ID] = fileId
+        }
+    }
+
+    suspend fun applyRemoteConfig(config: RemoteConfig) {
+        context.dataStore.edit { prefs ->
+            config.totalLimitHours?.let {
+                prefs[TOTAL_LIMIT_MS] = (it * 60 * 60 * 1000).toLong()
+            }
+            config.snsLimitHours?.let {
+                prefs[SNS_LIMIT_MS] = (it * 60 * 60 * 1000).toLong()
+            }
+            config.videoLimitHours?.let {
+                prefs[VIDEO_LIMIT_MS] = (it * 60 * 60 * 1000).toLong()
+            }
+            config.maxAlertsPerDay?.let {
+                prefs[MAX_ALERTS_PER_DAY] = it
+            }
+            config.cooldownMinutes?.let {
+                prefs[COOLDOWN_MINUTES] = it
+            }
+        }
+    }
+
     fun getThresholdConfig(settings: Settings): ThresholdConfig {
         return ThresholdConfig(
             totalDailyLimitMs = settings.totalLimitMs,
@@ -87,8 +121,13 @@ data class Settings(
     val beeminderGoal: String = "screentime",
     val totalLimitMs: Long = 3 * 60 * 60 * 1000L,
     val snsLimitMs: Long = 1 * 60 * 60 * 1000L,
-    val videoLimitMs: Long = 1 * 60 * 60 * 1000L
+    val videoLimitMs: Long = 1 * 60 * 60 * 1000L,
+    val driveFileId: String = "",
+    val maxAlertsPerDay: Int = 3,
+    val cooldownMinutes: Int = 120
 ) {
     val isLineConfigured: Boolean get() = lineToken.isNotBlank() && lineGroupId.isNotBlank()
     val isBeeminderConfigured: Boolean get() = beeminderUser.isNotBlank() && beeminderToken.isNotBlank()
+    val isDriveConfigured: Boolean get() = driveFileId.isNotBlank()
+    val cooldownMs: Long get() = cooldownMinutes.toLong() * 60 * 1000
 }

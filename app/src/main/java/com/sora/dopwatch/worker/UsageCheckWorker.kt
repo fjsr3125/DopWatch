@@ -16,6 +16,7 @@ import androidx.work.WorkerParameters
 import com.sora.dopwatch.R
 import com.sora.dopwatch.api.BeeminderClient
 import com.sora.dopwatch.api.LineMessagingClient
+import com.sora.dopwatch.api.RemoteConfigClient
 import com.sora.dopwatch.data.SettingsRepository
 import com.sora.dopwatch.data.UsageRepository
 import com.sora.dopwatch.domain.CheckUsageUseCase
@@ -31,7 +32,8 @@ class UsageCheckWorker @AssistedInject constructor(
     private val settingsRepository: SettingsRepository,
     private val checkUsageUseCase: CheckUsageUseCase,
     private val lineClient: LineMessagingClient,
-    private val beeminderClient: BeeminderClient
+    private val beeminderClient: BeeminderClient,
+    private val remoteConfigClient: RemoteConfigClient
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -40,8 +42,6 @@ class UsageCheckWorker @AssistedInject constructor(
         private const val PREFS_NAME = "dopwatch_worker_prefs"
         private const val KEY_LAST_ALERT_COUNT = "last_alert_count"
         private const val KEY_HEARTBEAT_PREFIX = "heartbeat_sent"
-        private const val MAX_LINE_ALERTS_PER_DAY = 3
-        private const val MIN_ALERT_COOLDOWN_MS = 2L * 60 * 60 * 1000  // 2時間クールダウン
         private const val KEY_LAST_ALERT_TIME = "last_alert_time"
         private const val HEARTBEAT_HOUR_MORNING = 9
         private const val HEARTBEAT_HOUR_NIGHT = 21
@@ -49,6 +49,16 @@ class UsageCheckWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         try {
+            // リモート設定をDriveから取得・適用
+            val preSettings = settingsRepository.getSettings()
+            if (preSettings.isDriveConfigured) {
+                remoteConfigClient.fetchConfig(preSettings.driveFileId)
+                    .onSuccess { remote ->
+                        settingsRepository.applyRemoteConfig(remote)
+                        Log.i(TAG, "リモート設定を適用")
+                    }
+            }
+
             // 使用時間を取得・保存
             usageRepository.refreshAndSave()
 
@@ -86,8 +96,8 @@ class UsageCheckWorker @AssistedInject constructor(
                 showNotification(alert.type.name, message)
             }
 
-            // LINE警告通知（1日3回まで、2時間クールダウン、ハートビートとは別枠）
-            if (settings.isLineConfigured && canSendLineAlert()) {
+            // LINE警告通知（クールダウン制、ハートビートとは別枠）
+            if (settings.isLineConfigured && canSendLineAlert(settings.maxAlertsPerDay, settings.cooldownMs)) {
                 val alertCount = getLineAlertCount()
                 val message = if (alertCount == 0) {
                     // 初回: 主要アラートを詳細表示
@@ -179,23 +189,23 @@ class UsageCheckWorker @AssistedInject constructor(
         }
     }
 
-    private fun canSendLineAlert(): Boolean {
+    private fun canSendLineAlert(maxAlerts: Int, cooldownMs: Long): Boolean {
         val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val today = usageRepository.getTodayString()
 
         // 1日の上限チェック
         val countKey = "${KEY_LAST_ALERT_COUNT}_$today"
         val count = prefs.getInt(countKey, 0)
-        if (count >= MAX_LINE_ALERTS_PER_DAY) return false
+        if (count >= maxAlerts) return false
 
         // 初回は即時送信OK
         if (count == 0) return true
 
-        // 2回目以降: 2時間クールダウン
+        // 2回目以降: クールダウン
         val timeKey = "${KEY_LAST_ALERT_TIME}_$today"
         val lastAlertTime = prefs.getLong(timeKey, 0L)
         val elapsed = System.currentTimeMillis() - lastAlertTime
-        return elapsed >= MIN_ALERT_COOLDOWN_MS
+        return elapsed >= cooldownMs
     }
 
     private fun getLineAlertCount(): Int {
