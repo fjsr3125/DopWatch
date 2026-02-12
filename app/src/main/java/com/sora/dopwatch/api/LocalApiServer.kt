@@ -11,7 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class LocalApiServer @Inject constructor(
     private val dao: AppUsageDao
-) : NanoHTTPD(8080) {
+) : NanoHTTPD("0.0.0.0", 8080) {
 
     override fun serve(session: IHTTPSession): Response {
         if (session.method != Method.GET) {
