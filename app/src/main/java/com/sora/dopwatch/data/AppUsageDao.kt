@@ -21,6 +21,9 @@ abstract class AppUsageDao {
     @Query("SELECT SUM(usageTimeMs) FROM app_usage WHERE date = :date")
     abstract suspend fun getTotalUsageByDate(date: String): Long?
 
+    @Query("SELECT * FROM app_usage WHERE date = :date ORDER BY usageTimeMs DESC")
+    abstract suspend fun getUsageListByDate(date: String): List<AppUsageEntity>
+
     @Transaction
     open suspend fun replaceByDate(date: String, usages: List<AppUsageEntity>) {
         deleteByDate(date)

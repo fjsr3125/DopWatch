@@ -79,6 +79,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Local HTTP Server
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+
     // DataStore (設定保存)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
