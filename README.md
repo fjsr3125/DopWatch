@@ -1,5 +1,9 @@
 # DopWatch
 
+[![Android CI](https://github.com/fjsr3125/DopWatch/actions/workflows/android-ci.yml/badge.svg)](https://github.com/fjsr3125/DopWatch/actions/workflows/android-ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/fjsr3125/DopWatch?label=release)](https://github.com/fjsr3125/DopWatch/releases)
+
 DopWatch is an Android screen-time monitor that helps people notice and reduce compulsive app usage.
 
 Androidスマホの使用時間を端末内で集計し、制限を超えたらローカル通知、LINE通知、Beeminder連携で行動を戻すためのオープンソースアプリです。
@@ -161,6 +165,7 @@ app/src/main/java/com/sora/dopwatch/
 
 ## Roadmap
 
+- [v0.2.0 milestone](https://github.com/fjsr3125/DopWatch/milestone/1)
 - v0.1.0 のGitHub Release作成
 - READMEへのスクリーンショット追加
 - Android権限エラー時の案内改善
