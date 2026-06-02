@@ -10,3 +10,18 @@
 .cxx
 local.properties
 plans/
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+secrets.properties
+keystore.properties
+google-services.json
+
+# Signing keys and certificates
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
