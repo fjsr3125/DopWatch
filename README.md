@@ -35,6 +35,26 @@ DopWatch は次の3つを重視しています。
 - 端末内 Room DB への使用履歴保存
 - localhost のみで参照できる使用状況API
 
+## Screenshots
+
+### Dashboard
+
+![Dashboard](docs/images/dashboard.png)
+
+Overview of screen-time usage and category limits.
+
+### Settings
+
+![Settings](docs/images/settings.png)
+
+Configure usage limits, LINE notifications, and Beeminder integration.
+
+### Permission Guidance
+
+![Permission Guidance](docs/images/permissions.png)
+
+Screen shown when Usage Access permission has not yet been granted.
+
 ## Tech Stack
 
 - Kotlin
