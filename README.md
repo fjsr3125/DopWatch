@@ -35,7 +35,7 @@ DopWatch は次の3つを重視しています。
 - 端末内 Room DB への使用履歴保存
 - localhost のみで参照できる使用状況API
 
- ## Screenshots
+## Screenshots
 
 ### Dashboard
 
